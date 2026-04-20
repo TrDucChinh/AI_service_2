@@ -1,0 +1,15 @@
+CREATE DATABASE product_laptop;
+CREATE DATABASE product_mobile;
+CREATE DATABASE product_tablet;
+CREATE DATABASE product_audio;
+CREATE DATABASE product_accessory;
+CREATE DATABASE product_smartwatch;
+CREATE DATABASE product_camera;
+CREATE DATABASE product_monitor;
+CREATE DATABASE product_keyboard;
+CREATE DATABASE product_mouse;
+CREATE DATABASE product_printer;
+CREATE DATABASE product_networking;
+CREATE DATABASE product_storage;
+CREATE DATABASE product_component;
+CREATE DATABASE product_gaminggear;

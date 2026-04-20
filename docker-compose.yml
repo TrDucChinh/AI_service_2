@@ -1,0 +1,640 @@
+version: '3.9'
+
+services:
+  # ─── Infrastructure ───────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: ecommerce_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: ecommerce_auth
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./infra/mysql-init:/docker-entrypoint-initdb.d
+    networks:
+      - ecommerce_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: ecommerce_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ecommerce_products
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres-init:/docker-entrypoint-initdb.d
+    networks:
+      - ecommerce_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ecommerce_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ecommerce_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ─── Business Services ────────────────────────────────────────────────────────
+  auth-service:
+    build: ./services/auth-service
+    container_name: auth_service
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8001
+      MYSQL_DB: ecommerce_auth
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./services/auth-service:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  user-service:
+    build: ./services/user-service
+    container_name: user_service
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8002
+      MYSQL_DB: ecommerce_users
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./services/user-service:/app
+
+  cart-service:
+    build: ./services/cart-service
+    container_name: cart_service
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8003
+      MYSQL_DB: ecommerce_cart
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./services/cart-service:/app
+
+  order-service:
+    build: ./services/order-service
+    container_name: order_service
+    restart: unless-stopped
+    ports:
+      - "8004:8004"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8004
+      MYSQL_DB: ecommerce_orders
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./services/order-service:/app
+
+  payment-service:
+    build: ./services/payment-service
+    container_name: payment_service
+    restart: unless-stopped
+    ports:
+      - "8005:8005"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8005
+      MYSQL_DB: ecommerce_payments
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./services/payment-service:/app
+
+  # ─── Product Services ─────────────────────────────────────────────────────────
+  laptop-service:
+    build: ./products/laptop-service
+    container_name: laptop_service
+    restart: unless-stopped
+    ports:
+      - "8010:8010"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8010
+      POSTGRES_DB: product_laptop
+      SERVICE_NAME: laptop
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./products/laptop-service:/app
+
+  mobile-service:
+    build: ./products/mobile-service
+    container_name: mobile_service
+    restart: unless-stopped
+    ports:
+      - "8011:8011"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8011
+      POSTGRES_DB: product_mobile
+      SERVICE_NAME: mobile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./products/mobile-service:/app
+
+  tablet-service:
+    build: ./products/tablet-service
+    container_name: tablet_service
+    restart: unless-stopped
+    ports:
+      - "8012:8012"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8012
+      POSTGRES_DB: product_tablet
+      SERVICE_NAME: tablet
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./products/tablet-service:/app
+
+  audio-service:
+    build: ./products/audio-service
+    container_name: audio_service
+    restart: unless-stopped
+    ports:
+      - "8013:8013"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8013
+      POSTGRES_DB: product_audio
+      SERVICE_NAME: audio
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./products/audio-service:/app
+
+  accessory-service:
+    build: ./products/accessory-service
+    container_name: accessory_service
+    restart: unless-stopped
+    ports:
+      - "8014:8014"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8014
+      POSTGRES_DB: product_accessory
+      SERVICE_NAME: accessory
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./products/accessory-service:/app
+
+  smartwatch-service:
+    build: ./products/smartwatch-service
+    container_name: smartwatch_service
+    restart: unless-stopped
+    ports:
+      - "8015:8015"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8015
+      POSTGRES_DB: product_smartwatch
+      SERVICE_NAME: smartwatch
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./products/smartwatch-service:/app
+
+  camera-service:
+    build: ./products/camera-service
+    container_name: camera_service
+    restart: unless-stopped
+    ports:
+      - "8016:8016"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8016
+      POSTGRES_DB: product_camera
+      SERVICE_NAME: camera
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./products/camera-service:/app
+
+  monitor-service:
+    build: ./products/monitor-service
+    container_name: monitor_service
+    restart: unless-stopped
+    ports:
+      - "8017:8017"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8017
+      POSTGRES_DB: product_monitor
+      SERVICE_NAME: monitor
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./products/monitor-service:/app
+
+  keyboard-service:
+    build: ./products/keyboard-service
+    container_name: keyboard_service
+    restart: unless-stopped
+    ports:
+      - "8018:8018"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8018
+      POSTGRES_DB: product_keyboard
+      SERVICE_NAME: keyboard
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./products/keyboard-service:/app
+
+  mouse-service:
+    build: ./products/mouse-service
+    container_name: mouse_service
+    restart: unless-stopped
+    ports:
+      - "8019:8019"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8019
+      POSTGRES_DB: product_mouse
+      SERVICE_NAME: mouse
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./products/mouse-service:/app
+
+  printer-service:
+    build: ./products/printer-service
+    container_name: printer_service
+    restart: unless-stopped
+    ports:
+      - "8020:8020"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8020
+      POSTGRES_DB: product_printer
+      SERVICE_NAME: printer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./products/printer-service:/app
+
+  networking-service:
+    build: ./products/networking-service
+    container_name: networking_service
+    restart: unless-stopped
+    ports:
+      - "8021:8021"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8021
+      POSTGRES_DB: product_networking
+      SERVICE_NAME: networking
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./products/networking-service:/app
+
+  storage-service:
+    build: ./products/storage-service
+    container_name: storage_service
+    restart: unless-stopped
+    ports:
+      - "8022:8022"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8022
+      POSTGRES_DB: product_storage
+      SERVICE_NAME: storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./products/storage-service:/app
+
+  component-service:
+    build: ./products/component-service
+    container_name: component_service
+    restart: unless-stopped
+    ports:
+      - "8023:8023"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8023
+      POSTGRES_DB: product_component
+      SERVICE_NAME: component
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./products/component-service:/app
+
+  gaminggear-service:
+    build: ./products/gaminggear-service
+    container_name: gaminggear_service
+    restart: unless-stopped
+    ports:
+      - "8024:8024"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8024
+      POSTGRES_DB: product_gaminggear
+      SERVICE_NAME: gaminggear
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./products/gaminggear-service:/app
+
+  # ─── Search & Gateway ─────────────────────────────────────────────────────────
+  search-service:
+    build: ./search
+    container_name: search_service
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8025
+    depends_on:
+      - laptop-service
+      - mobile-service
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./search:/app
+
+  gateway:
+    build: ./gateway
+    container_name: api_gateway
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8000
+    depends_on:
+      - auth-service
+      - user-service
+      - cart-service
+      - order-service
+      - payment-service
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./gateway:/app
+
+  frontend:
+    build: ./frontend
+    container_name: ecommerce_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - gateway
+    networks:
+      - ecommerce_net
+
+  # ─── Celery Workers ───────────────────────────────────────────────────────────
+  celery-order-worker:
+    build: ./services/order-service
+    container_name: celery_order_worker
+    restart: unless-stopped
+    command: celery -A order_service worker --loglevel=info -Q orders
+    env_file: .env
+    environment:
+      MYSQL_DB: ecommerce_orders
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./services/order-service:/app
+
+  celery-payment-worker:
+    build: ./services/payment-service
+    container_name: celery_payment_worker
+    restart: unless-stopped
+    command: celery -A payment_service worker --loglevel=info -Q payments
+    env_file: .env
+    environment:
+      MYSQL_DB: ecommerce_payments
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./services/payment-service:/app
+
+  celery-notification-worker:
+    build: ./services/notification-service
+    container_name: celery_notification_worker
+    restart: unless-stopped
+    command: celery -A notification_service worker --loglevel=info -Q notifications
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./services/notification-service:/app
+
+  celery-flower:
+    image: mher/flower:2.0
+    container_name: celery_flower
+    restart: unless-stopped
+    command: celery --broker=redis://redis:6379/1 flower --port=5555
+    ports:
+      - "5555:5555"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+
+  notification-service:
+    build: ./services/notification-service
+    container_name: notification_service
+    restart: unless-stopped
+    ports:
+      - "8026:8026"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8026
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./services/notification-service:/app
+
+  recommendation-service:
+    build: ./services/recommendation-service
+    container_name: recommendation_service
+    restart: unless-stopped
+    ports:
+      - "8027:8027"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8027
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./services/recommendation-service:/app
+
+  inventory-service:
+    build: ./services/inventory-service
+    container_name: inventory_service_agg
+    restart: unless-stopped
+    ports:
+      - "8028:8028"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8028
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./services/inventory-service:/app
+
+  # ─── Nginx ───────────────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: ecommerce_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - gateway
+      - frontend
+    networks:
+      - ecommerce_net
+
+volumes:
+  mysql_data:
+  postgres_data:
+  redis_data:
+
+networks:
+  ecommerce_net:
+    driver: bridge
