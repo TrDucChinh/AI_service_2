@@ -2,14 +2,16 @@ import { Link } from 'react-router-dom'
 import { ShoppingCart, Star } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useDispatch, useSelector } from 'react-redux'
-import { selectIsAuthenticated } from '../store/authSlice'
+import { selectCurrentUser, selectIsAuthenticated } from '../store/authSlice'
 import { cartApi } from '../api/cart'
 import { incrementCount } from '../store/cartSlice'
+import { trackBehaviorEvent } from '../api/ai'
 import toast from 'react-hot-toast'
 
 export default function ProductCard({ product, service }) {
   const dispatch = useDispatch()
   const isAuthenticated = useSelector(selectIsAuthenticated)
+  const currentUser = useSelector(selectCurrentUser)
 
   const handleAddToCart = async (e) => {
     e.preventDefault()
@@ -19,6 +21,11 @@ export default function ProductCard({ product, service }) {
     }
     try {
       await cartApi.addItem({ product_id: product.id, product_service: service, quantity: 1, price: product.current_price || product.price })
+      await trackBehaviorEvent({
+        userId: currentUser?.id,
+        productId: product.id,
+        action: 'add_to_cart',
+      })
       dispatch(incrementCount())
       toast.success('Added to cart!')
     } catch {
@@ -35,7 +42,16 @@ export default function ProductCard({ product, service }) {
       transition={{ duration: 0.2 }}
       className="bg-white rounded-xl border border-gray-200 overflow-hidden group"
     >
-      <Link to={`/products/${service}/${product.id}`}>
+      <Link
+        to={`/products/${service}/${product.id}`}
+        onClick={() =>
+          trackBehaviorEvent({
+            userId: currentUser?.id,
+            productId: product.id,
+            action: 'click',
+          })
+        }
+      >
         <div className="aspect-square bg-gray-100 overflow-hidden">
           <img
             src={product.primary_image || `https://placehold.co/400x400?text=${encodeURIComponent(product.name)}`}

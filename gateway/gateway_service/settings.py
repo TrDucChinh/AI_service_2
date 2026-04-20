@@ -65,6 +65,7 @@ SEARCH_SERVICE_URL = config('SEARCH_SERVICE_URL', default='http://search-service
 NOTIFICATION_SERVICE_URL = config('NOTIFICATION_SERVICE_URL', default='http://notification-service:8026')
 RECOMMENDATION_SERVICE_URL = config('RECOMMENDATION_SERVICE_URL', default='http://recommendation-service:8027')
 INVENTORY_SERVICE_URL = config('INVENTORY_SERVICE_URL', default='http://inventory-service:8028')
+AI_SERVICE_URL = config('AI_SERVICE_URL', default='http://ai-service:8029')
 
 PRODUCT_SERVICE_URLS = {
     'laptop': config('LAPTOP_SERVICE_URL', default='http://laptop-service:8010'),

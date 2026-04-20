@@ -19,6 +19,7 @@ import Analytics from './pages/admin/Analytics'
 import InventoryDashboard from './pages/admin/InventoryDashboard'
 import InventoryPanel from './pages/staff/InventoryPanel'
 import OrderProcessing from './pages/staff/OrderProcessing'
+import AIInsights from './pages/AIInsights'
 
 export default function App() {
   return (
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="/admin/inventory" element={<AdminRoute><InventoryDashboard /></AdminRoute>} />
             <Route path="/staff/inventory" element={<AdminRoute staffOnly><InventoryPanel /></AdminRoute>} />
             <Route path="/staff/orders" element={<AdminRoute staffOnly><OrderProcessing /></AdminRoute>} />
+            <Route path="/ai-insights" element={<ProtectedRoute><AIInsights /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

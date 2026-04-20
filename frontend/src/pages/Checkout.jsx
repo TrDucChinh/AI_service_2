@@ -2,14 +2,18 @@ import { useForm } from 'react-hook-form'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import { useSelector } from 'react-redux'
 import { cartApi } from '../api/cart'
 import { ordersApi } from '../api/orders'
+import { trackBehaviorEvent } from '../api/ai'
 import LoadingSpinner from '../components/LoadingSpinner'
 import toast from 'react-hot-toast'
 import { CreditCard, Truck } from 'lucide-react'
+import { selectCurrentUser } from '../store/authSlice'
 
 export default function Checkout() {
   const navigate = useNavigate()
+  const currentUser = useSelector(selectCurrentUser)
   const { register, handleSubmit, formState: { errors } } = useForm()
   const [paymentMethod, setPaymentMethod] = useState('CREDIT_CARD')
   const [submitting, setSubmitting] = useState(false)
@@ -28,6 +32,16 @@ export default function Checkout() {
   const onSubmit = async (data) => {
     setSubmitting(true)
     try {
+      await Promise.allSettled(
+        items.map((item) =>
+          trackBehaviorEvent({
+            userId: currentUser?.id,
+            productId: item.product_id,
+            action: 'checkout',
+          })
+        )
+      )
+
       const orderItems = items.map(item => ({
         product_id: item.product_id,
         product_service: item.product_service,
@@ -45,6 +59,16 @@ export default function Checkout() {
 
       const order = orderRes.data
       await ordersApi.initiatePayment({ order_id: order.id, method: paymentMethod, amount: total.toFixed(2) })
+
+      await Promise.allSettled(
+        items.map((item) =>
+          trackBehaviorEvent({
+            userId: currentUser?.id,
+            productId: item.product_id,
+            action: 'purchase',
+          })
+        )
+      )
 
       await cartApi.clear()
       toast.success('Order placed successfully!')

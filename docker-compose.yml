@@ -59,6 +59,18 @@ services:
       timeout: 5s
       retries: 3
 
+  neo4j:
+    image: neo4j:5-community
+    container_name: ecommerce_neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/password
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    networks:
+      - ecommerce_net
+
   # ─── Business Services ────────────────────────────────────────────────────────
   auth-service:
     build: ./services/auth-service
@@ -484,6 +496,7 @@ services:
       - cart-service
       - order-service
       - payment-service
+      - ai-service
     networks:
       - ecommerce_net
     volumes:
@@ -614,6 +627,29 @@ services:
       - ecommerce_net
     volumes:
       - ./services/inventory-service:/app
+
+  ai-service:
+    build: ./services/ai-service
+    container_name: ai_service
+    restart: unless-stopped
+    ports:
+      - "8029:8029"
+    env_file: .env
+    environment:
+      SERVICE_PORT: 8029
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: password
+      BEHAVIOR_DATASET_PATH: /app/data/data_user500.csv
+      ML_MODELS_DIR: /app/ml_models
+    depends_on:
+      - neo4j
+    networks:
+      - ecommerce_net
+    volumes:
+      - ./services/ai-service:/app
+      - ./ml_models:/app/ml_models
+      - ./data:/app/data
 
   # ─── Nginx ───────────────────────────────────────────────────────────────────
   nginx:

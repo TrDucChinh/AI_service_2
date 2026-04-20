@@ -5,18 +5,21 @@ import { ShoppingCart, Star, Package, CheckCircle } from 'lucide-react'
 import { productsApi } from '../api/products'
 import { cartApi } from '../api/cart'
 import api from '../api/axios'
-import { selectIsAuthenticated } from '../store/authSlice'
+import { selectCurrentUser, selectIsAuthenticated } from '../store/authSlice'
 import { incrementCount } from '../store/cartSlice'
 import LoadingSpinner from '../components/LoadingSpinner'
 import toast from 'react-hot-toast'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { trackBehaviorEvent } from '../api/ai'
 
 export default function ProductDetail() {
   const { service, id } = useParams()
   const dispatch = useDispatch()
   const isAuthenticated = useSelector(selectIsAuthenticated)
+  const currentUser = useSelector(selectCurrentUser)
   const [qty, setQty] = useState(1)
   const [activeImage, setActiveImage] = useState(0)
+  const [wishlistSaved, setWishlistSaved] = useState(false)
 
   const { data: product, isLoading } = useQuery({
     queryKey: ['product', service, id],
@@ -35,10 +38,35 @@ export default function ProductDetail() {
     if (!isAuthenticated) { toast.error('Please login first'); return }
     try {
       await cartApi.addItem({ product_id: product.id, product_service: service, quantity: qty, price: product.current_price || product.price })
+      await trackBehaviorEvent({
+        userId: currentUser?.id,
+        productId: product.id,
+        action: 'add_to_cart',
+      })
       dispatch(incrementCount())
       toast.success(`${qty} item(s) added to cart!`)
     } catch { toast.error('Failed to add to cart') }
   }
+
+  const handleWishlist = async () => {
+    if (!isAuthenticated) { toast.error('Please login first'); return }
+    await trackBehaviorEvent({
+      userId: currentUser?.id,
+      productId: product.id,
+      action: 'wishlist',
+    })
+    setWishlistSaved(true)
+    toast.success('Saved to wishlist')
+  }
+
+  useEffect(() => {
+    if (!isAuthenticated || !product?.id) return
+    trackBehaviorEvent({
+      userId: currentUser?.id,
+      productId: product.id,
+      action: 'view',
+    })
+  }, [isAuthenticated, currentUser?.id, product?.id])
 
   if (isLoading) return <LoadingSpinner />
   if (!product) return <p className="text-center py-12 text-red-500">Product not found.</p>
@@ -104,6 +132,12 @@ export default function ProductDetail() {
               </div>
               <button onClick={handleAddToCart} className="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-2.5 rounded-lg font-semibold flex items-center justify-center gap-2">
                 <ShoppingCart size={18} /> Add to Cart
+              </button>
+              <button
+                onClick={handleWishlist}
+                className={`px-4 py-2.5 rounded-lg font-semibold ${wishlistSaved ? 'bg-pink-100 text-pink-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              >
+                {wishlistSaved ? 'Wishlisted' : 'Wishlist'}
               </button>
             </div>
           )}

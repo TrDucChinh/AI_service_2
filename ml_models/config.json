@@ -1,0 +1,6 @@
+{
+  "model_type": "rnn",
+  "window_size": 5,
+  "num_classes": 8,
+  "hidden_dim": 64
+}

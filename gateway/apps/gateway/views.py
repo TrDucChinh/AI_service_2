@@ -116,3 +116,10 @@ class InventoryProxyView(APIView):
 
     def dispatch(self, request, path='', **kwargs):
         return _proxy_request(request, settings.INVENTORY_SERVICE_URL, f'inventory/{path}')
+
+
+class AIProxyView(APIView):
+    permission_classes = [AllowAny]
+
+    def dispatch(self, request, path='', **kwargs):
+        return _proxy_request(request, settings.AI_SERVICE_URL, path)

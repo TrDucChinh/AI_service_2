@@ -1,14 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { Link, useNavigate } from 'react-router-dom'
 import { Trash2, Plus, Minus, ShoppingBag } from 'lucide-react'
 import { cartApi } from '../api/cart'
 import { setCart } from '../store/cartSlice'
+import { selectCurrentUser } from '../store/authSlice'
+import { trackBehaviorEvent } from '../api/ai'
 import LoadingSpinner from '../components/LoadingSpinner'
 import toast from 'react-hot-toast'
 
 export default function Cart() {
   const dispatch = useDispatch()
+  const currentUser = useSelector(selectCurrentUser)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -27,8 +30,16 @@ export default function Cart() {
   })
 
   const removeMutation = useMutation({
-    mutationFn: (id) => cartApi.removeItem(id),
-    onSuccess: () => { queryClient.invalidateQueries(['cart']); toast.success('Item removed') },
+    mutationFn: (item) => cartApi.removeItem(item.id),
+    onSuccess: async (_, item) => {
+      await trackBehaviorEvent({
+        userId: currentUser?.id,
+        productId: item.product_id,
+        action: 'remove_cart',
+      })
+      queryClient.invalidateQueries(['cart'])
+      toast.success('Item removed')
+    },
   })
 
   if (isLoading) return <LoadingSpinner />
@@ -64,7 +75,7 @@ export default function Cart() {
                 <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
                 <button onClick={() => updateMutation.mutate({ id: item.id, quantity: item.quantity + 1 })} className="p-1 border rounded hover:bg-gray-50"><Plus size={14} /></button>
               </div>
-              <button onClick={() => removeMutation.mutate(item.id)} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={16} /></button>
+              <button onClick={() => removeMutation.mutate(item)} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={16} /></button>
             </div>
           ))}
         </div>

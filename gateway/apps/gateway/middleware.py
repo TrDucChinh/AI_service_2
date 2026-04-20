@@ -47,6 +47,8 @@ PUBLIC_PATHS = [
     '/api/auth/refresh',
     '/api/auth/verify',
     '/health',
+    '/api/ai/health/',
+    '/api/ai/health',
 ]
 
 # Paths where write ops (POST/PUT/PATCH/DELETE) require admin or staff

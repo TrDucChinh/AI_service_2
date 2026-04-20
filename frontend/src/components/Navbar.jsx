@@ -4,6 +4,7 @@ import { ShoppingCart, User, LogOut, Menu, Search } from 'lucide-react'
 import { selectIsAuthenticated, selectCurrentUser, selectUserRole, logout } from '../store/authSlice'
 import { selectCartCount } from '../store/cartSlice'
 import { authApi } from '../api/auth'
+import { trackBehaviorEvent } from '../api/ai'
 import toast from 'react-hot-toast'
 import { useState } from 'react'
 
@@ -29,7 +30,15 @@ export default function Navbar() {
 
   const handleSearch = (e) => {
     e.preventDefault()
-    if (search.trim()) navigate(`/products?q=${encodeURIComponent(search.trim())}`)
+    const keyword = search.trim()
+    if (keyword) {
+      trackBehaviorEvent({
+        userId: user?.id,
+        productId: `search:${keyword.toLowerCase()}`,
+        action: 'search',
+      })
+      navigate(`/products?q=${encodeURIComponent(keyword)}`)
+    }
   }
 
   return (
@@ -55,6 +64,7 @@ export default function Navbar() {
 
           <div className="flex items-center gap-4">
             <Link to="/products" className="hidden md:block text-sm text-gray-600 hover:text-primary-600">Products</Link>
+            {isAuthenticated && <Link to="/ai-insights" className="hidden md:block text-sm text-gray-600 hover:text-primary-600">AI Insights</Link>}
 
             {isAuthenticated && (
               <Link to="/cart" className="relative text-gray-600 hover:text-primary-600">

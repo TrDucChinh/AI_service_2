@@ -12,4 +12,5 @@ urlpatterns = [
     re_path(r'^api/products/(?P<service>[^/]+)/(?P<path>.*)$', views.ProductProxyView.as_view(), name='product-proxy'),
     re_path(r'^api/recommendations/(?P<path>.*)$', views.RecommendationProxyView.as_view(), name='recommendation-proxy'),
     re_path(r'^api/inventory/(?P<path>.*)$', views.InventoryProxyView.as_view(), name='inventory-proxy'),
+    re_path(r'^api/ai/(?P<path>.*)$', views.AIProxyView.as_view(), name='ai-proxy'),
 ]
